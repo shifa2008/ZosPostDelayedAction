@@ -29,7 +29,7 @@ typedef struct{
 	long Num;
 	ZosPostDelayedAction_t *ZosPostBuf;
 }ZosPostClass_t;
-#define  TaskSleep(Task)    do { if(setjmp(((ZosPostDelayedAction_t*)Task)->Var->env)==0) return ;} while(0);                      // if(((ZosPostDelayedAction_t*)Task)->Var->Started>0)longjmp(((ZosPostDelayedAction_t*)Task)->Var->env,1); ((ZosPostDelayedAction_t*)Task)->Var->Started=1;do { if(setjmp(((ZosPostDelayedAction_t*)Task)->Var->env)==0){((ZosPostDelayedAction_t*)Task)->Var->Started=0;}} while(0);
+#define  TaskSleep(Task)    do { if(setjmp(((ZosPostDelayedAction_t*)Task)->Var->env)==0) return ;} while(0);
 extern int ZosPostSetInterruptSignalAction(ZosPostClass_t *This,long InterruptSignal,void  (*Action)(void *Argc,void *p,void *System),void *arg);//设置一个信号断点
 extern int ZosPostInterruptSignalAction(ZosPostClass_t *This,long timer,long IsrMark); //触发一个信号断点
 extern void  ZosPostDelayedActionClock(ZosPostClass_t *This);  //系统时钟
