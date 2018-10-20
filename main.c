@@ -1,77 +1,69 @@
 /*
  * main.c
  *
- *  Created on: 2018年9月9日
- *      Author: user
- */
-
-
-/*
- * main.c
- *
  *  Created on: 2018年7月6日
  *      Author: user
  */
-#include <windows.h>
-#include<conio.h>
+#include  "stdio.h"
 #include "Button.h"
 #include "ZosPostDelayedAction.h"
-
 ButtonClass_t *ButtonThis=NULL;
 void *ZosThis=NULL;
+enum{
+	SINGNAL_NULL_E,
+	TASK_DEMO_E,
+	BUTTON_SINGNAL_E,
+}SINGNAL_e;
+//本例程 为测试专用 演示系统运行。与系统无关
 //延时模拟
-unsigned int i=0;
-void  ActionTask(void *Argc,void *User,void *System)
+unsigned int i=1;
+int  ActionTask(int arg,char *argv[])
 {
+
+    void *Argc=(ZosPostClass_t*)argv[0];
+    ZosPostDelayedAction_t *System=(ZosPostDelayedAction_t*)argv[1];
 
 	TaskStart(System);
 
-
     while(1)
     {
-    i=100000;
+    if(i==0)i=1;
+	i=i*2;
+	ZosPostSetInterruptSignalAction(Argc,TASK_DEMO_E,GetSystem(argv)->Action,GetUserThis(argv));//放下一个断信号
+	ZosPostDelayedAction(Argc,i,GetSystem(argv)->Action,GetUserThis(argv));                     //启动一个延时信号
+	TaskSleep(System);                                                                          //放下一个断点暂时退出本函数
+	printf("1hello:%d\r\n",i);
 
-	//如果 时间长度-2 为阻塞信号标志
-	ZosPostSetInterruptSignalAction(Argc,-2,ActionTask,User);
-	ZosPostDelayedAction(Argc,i,ActionTask,User);
+	i=i*2;
+	ZosPostSetInterruptSignalAction(Argc,TASK_DEMO_E,GetSystem(argv)->Action,GetUserThis(argv));
+	ZosPostDelayedAction(Argc,i,GetSystem(argv)->Action,GetUserThis(argv));
 	TaskSleep(System);
-	printf("1hello%d\r\n",i);
+	printf("2hello:%d\r\n",i);
 
-	//i=i*2;
-	ZosPostSetInterruptSignalAction(Argc,-2,ActionTask,User);
-	ZosPostDelayedAction(Argc,i,ActionTask,User);
+	i=i*2;
+	ZosPostSetInterruptSignalAction(Argc,TASK_DEMO_E,GetSystem(argv)->Action,GetUserThis(argv));
+	ZosPostDelayedAction(Argc,i,GetSystem(argv)->Action,GetUserThis(argv));
 	TaskSleep(System);
-	printf("2hello%d\r\n",i);
 
-	//i=i*2;
-	ZosPostSetInterruptSignalAction(Argc,-2,ActionTask,User);
-	ZosPostDelayedAction(Argc,i,ActionTask,User);
-	TaskSleep(System);
-	printf("3hello%d\r\n",i);
-	ZosPostDelayedAction(Argc,5000,ActionTask,User);
-	ZosPostSetInterruptSignalAction(Argc,-2,ActionTask,User);
-	TaskSleep(System);
 	//i=i*2;
 	//ZosPostDelayedAction(Argc,i,Action,NULL); //让系统锁定在这里执行
 	//TaskEnd();
     }
+	TaskStop(System);
 
 }
 //按键扫描模拟r
-void  ButtonActionTask(void *Argc,void *User,void *System)
+int  ButtonActionTask(int arg,char *argv[])
 {
-	ButtonClass_t *Button=User;
-	unsigned int k=0;
-	TaskStart(System);
+	ButtonClass_t *Button=(	ButtonClass_t *)GetUserThis(argv);
+	TaskStart(GetSystem(argv));
     while(1)
     {
-    //	k++;
-   //  printf("\r\nk=%d",k);
      Button->Loop(Button);
-     ZosPostDelayedAction(Argc,10,ButtonActionTask,User);
-     TaskSleep(System);
-
+     ZosPostDelayedAction(GetThis(argv),10,ButtonActionTask,GetUserThis(argv));
+     TaskSleep(GetSystem(argv));
     }
+	TaskStop(System);
 
 }
 char ButtonGet(struct Button_n *This)
@@ -86,7 +78,7 @@ char ButtonGet(struct Button_n *This)
 	    if(ch=='r')
 	    {
 
-	    	ZosPostInterruptSignalAction(ZosThis,10,-2);
+	    	ZosPostInterruptSignalAction(ZosThis,10,TASK_DEMO_E);//触发一次 TASK_DEMO_E信号
 	    }
 	}
 
@@ -101,13 +93,13 @@ void ButtonDownEvent(struct Button_n *This)
 {
     printf("ButtonDownEvent\r\n");
 }
-//协程应用举例
+
 int main()
 {
-
-	 printf("按下R 运行ActionTask 例子\r\n");
-	 printf("按下K 运行ButtonActionTask 例子\r\n");
-
+	 printf("   纯C演示 模拟线程   \r\n");
+	 printf("  演示如何模拟延时输出\r\n");
+	 printf("r.如按下会演示立即输出\r\n");
+	 printf("k.如按下会按键立即输出\r\n");
 	 ButtonThis=CreateButtonClassMallocNew();
 	 ButtonThis->ButtonDownEvent=ButtonDownEvent;//按下事件回调
 	 ButtonThis->ButtonUpEvent=ButtonUpEvent;    //抬起事件回调
@@ -117,12 +109,12 @@ int main()
 	// ZosThis=CreateZosPostDelayedActionClassUser(ZosThis,uZosBuff,10); //可以手动指定最大协同数量
 	 ZosPostDelayedAction(ZosThis,1,ActionTask,NULL);
 	 ZosPostDelayedAction(ZosThis,10,ButtonActionTask,ButtonThis);//模拟检测按键
+
+	// ZosPostSetPriorityEvel(ZosThis,ActionTask,66536);//放慢执行ActtionTask
 	 while(1)
 	 {
-
-    	 ZosPostDelayedActionLoop(ZosThis);
-	     ZosPostDelayedActionClock(ZosThis);//实际应用 这个应放在定时器中
-
+	 ZosPostDelayedActionLoop(ZosThis);
+	 ZosPostDelayedActionClock(ZosThis);
 	 }
 
 }
